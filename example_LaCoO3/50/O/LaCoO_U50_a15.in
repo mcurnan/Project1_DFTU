@@ -1,0 +1,69 @@
+&CONTROL
+ calculation = "scf",
+ verbosity = "high",
+ restart_mode = "from_scratch",
+ disk_io = "none",
+ pseudo_dir = "/home/mcurnan/GGA+U_Corr/TestProj1_Code/example_LaCoO3",
+ outdir = "/home/mcurnan/GGA+U_Corr/TestProj1_Code/example_LaCoO3/50/O/alpha/",
+ title = "GGA + U, U = 0.500, alpha = 0.150",
+ prefix = "LaCoO_U50_a15.in",
+ wfcdir = "./",
+ wf_collect = .false.
+ /
+&SYSTEM
+ ibrav = 1
+ celldm(1) = 5.466
+ celldm(4) = 0.4881
+ nat = 10
+ ntyp = 4
+ ecutwfc = 30.0
+ ecutrho = 300.0
+ starting_magnetization(1) = 4.0
+ occupations = "smearing",
+ smearing = "gauss",
+ degauss = 0.01
+ nosym = .false.
+ lda_plus_U = .true.
+ lda_plus_U_kind = 0
+ U_projection_type = "atomic",
+ Hubbard_U(1) = 0.500
+ Hubbard_alpha(1) = 1D-40
+ Hubbard_U(2) = 0.500
+ Hubbard_alpha(2) = 1D-40
+ Hubbard_U(3) = 1D-40
+ Hubbard_alpha(3) = 0.150
+ Hubbard_U(4) = 1D-40
+ Hubbard_alpha(4) = 1D-40
+ /
+&ELECTRONS
+ electron_maxstep = 200
+ conv_thr = 1D-08
+ diagonalization = "david",
+ diago_thr_init = 5D-11
+ diago_full_acc = .false.
+ startingpot = "file",
+ startingwfc = "file",
+ mixing_mode = "plain",
+ mixing_beta = 0.3
+ mixing_ndim = 8
+ /
+ATOMIC_SPECIES
+La1   1.0   La.pbe-nsp-van.UPF
+Co1   1.0   Co.pbe-nd-rrkjus.UPF
+O1   1.0   O.pbe-rrkjus.UPF
+O2   1.0   O.pbe-rrkjus.UPF
+
+ATOMIC_POSITIONS (crystal)
+La1  0.0004  0.4391  0.56
+La1  0.5004  0.9391  0.06
+Co1  0.7504  0.1891  0.31
+Co1  0.2504  0.6891  0.81
+O1  0.0  0.0  0.0
+O2  0.5613  0.8791  0.5596
+O2  0.4404  0.4387  0.1209
+O2  0.5008  0.3782  0.62
+O2  0.9395  0.4991  0.0604
+O2  0.0604  0.9395  0.4991
+
+K_POINTS (automatic)
+ 4 4 4 0 0 0

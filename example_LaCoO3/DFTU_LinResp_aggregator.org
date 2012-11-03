@@ -1,0 +1,646 @@
+* Project #1
+
+** Part 1: Create Input Files
+#+begin_src python
+import os
+import fnmatch  # needed for
+import shutil   # needed for moving and copying the Quantum Espresso executable (generally, pw.x)
+import numpy as np   # needed to store (x,y,z) coordinate data from .xyz file
+
+# ##########################################################################
+# input parameters (change these based on your system)
+
+atoms_typ = {0:['La',2], 1:['Co',2], 2:['O',2]} # types of atoms present
+ibrav = 1
+cell_dims = [5.466, 0, 0, 0.4881, 0, 0] # zeros if uses angles, need all
+cell_unit = 'angstrom'
+coord_unit = 'crystal'
+
+Hubbard_U_auto = 'true'
+Hubbard_U_set = {}  #
+# atoms_num = [8, 8]  # atoms_num.append(atoms_counter[i])
+
+# miminum boundary, maximum boundary, interval size, and numerical scale for perturbation (alpha) loop, respectively
+min_alpha = -15
+max_alpha = 15   # boundaries should be symmetric with respect to 0 and be sufficiently large to characterize linear perturbation behavior
+del_alpha = 5    # select to generate a sufficient number of perturbations to evaluate the linearity of the pertubation behavior
+scale_alpha = 100.   # inputed perturbations result from dividing the number within the boundaries by the scale; its magnitude depends on the magnitude of the boudaries
+
+min_U = 0
+max_U = 500
+del_U = 50
+scale_U = 100.
+
+verbosity = 'high'
+wf_collect = '.false.'
+init_disk_io = 'high'
+alpha_disk_io = 'none'
+
+PPot_path = os.getcwd()
+pseudo_dir = PPot_path
+QE_code = 'pw_plusPP_Lad1.x'
+
+nspin = '2'
+magmoment_base = 4 #antiferromag, explain also ferromag and ferrimag
+ecutwfc = '30.0'
+ecutrho = '300.0'
+occupations = 'smearing'
+smearing = 'gauss'
+degauss = '0.01'
+nosym = '.false.'
+# nbnd = '' # should be set for metallic systems (default: 1/2 * total # of electrons in system) as the default + ~10-15 (trial and error)
+U_projection_type = 'atomic'
+
+init_electron_maxstep = '50'
+alpha_electron_maxstep = '200'
+conv_thr = '1D-08'
+diagonalization = 'david'
+init_diago_thr_init = '1D-2'
+alpha_diago_thr_init = '5D-11'
+diago_full_acc = '.false.'
+init_startingpot = 'atomic'
+alpha_startingpot = 'file'
+init_startingwfc = 'atomic+random'
+alpha_startingwfc = 'file'
+
+mixing_mode = 'plain'
+mixing_beta = '0.3'
+mixing_ndim = '8'
+mixing_fixed_ns = '0'
+
+kpts_mode = 'automatic'
+kpts_grid = '4 4 4 0 0 0'
+
+walltime = '96:00:00'
+nodes_num = 1
+ppn_num = 4
+
+min_U_run = 0
+max_U_run = 0
+atoms_run = [] # ['La', 'Co', 'O']
+
+# ##########################################################################
+
+nprocs = nodes_num * ppn_num
+nodes = str(nodes_num)
+ppn = str(ppn_num)
+
+
+natoms_typ = len(atoms_typ) # number of different types of atoms
+
+atoms_counter = []
+for i in range(natoms_typ):
+    init_counter = 0
+    atoms_counter.append(init_counter)
+
+struct_file_info = open('attyp0_center.xyz','r').readlines()
+natoms_str = struct_file_info[0].split()[0]
+natoms = int(natoms_str)
+
+atoms_pturb = []
+atoms_num = []
+
+coordx = np.zeros((natoms_typ, natoms))
+coordy = np.zeros((natoms_typ, natoms))
+coordz = np.zeros((natoms_typ, natoms))
+
+coord_order = np.zeros((natoms_typ, natoms+1))
+
+atoms_lib = {}
+for i in range(natoms_typ):
+    struct_str = str(i)
+    struct_file_info = open('attyp'+struct_str+'_center.xyz','r').readlines()
+    atoms_pturb.append(struct_file_info[1].split()[-1])
+
+    atoms_list = []
+    for j in range(natoms):
+        coord_int = int(j+2)
+        atoms_id = struct_file_info[coord_int].split()[0]
+        coordx[i][j] = struct_file_info[coord_int].split()[1]
+        coordy[i][j] = struct_file_info[coord_int].split()[2]
+        coordz[i][j] = struct_file_info[coord_int].split()[3]
+
+        coord_order[i][j] = struct_file_info[1].split()[j]
+
+        if atoms_id == atoms_typ[i][0]:
+            atoms_counter[i] += 1
+
+        atoms_list.append(atoms_id)
+
+    atoms_num.append(atoms_counter[i])
+
+    atoms_list.append(atoms_id) # can't change on last one, maybe
+    atoms_lib[i] = atoms_list
+
+ncell_dim = len(cell_dims)
+cell_dm = []
+Bohr_to_Ang = 0.529177249
+Ang_to_Bohr = 1.889725989
+
+if ncell_dim < 4:
+    for i in range(ncell_dim):
+        if cell_dims[i] == 0:
+            pass
+        if cell_unit == 'angstrom':
+            cell_dm.append(Ang_to_Bohr*cell_dims[i])
+        else:
+            cell_dm.append(cell_dims[i])
+else:
+    for i in [0, 1, 2]:
+        if cell_dims[i] == 0:
+            pass
+        if cell_unit == 'angstrom':
+            cell_dm.append(Ang_to_Bohr*cell_dims[i])
+        else:
+            cell_dm.append(cell_dims[i])
+    for i in [3, 4, 5]:
+        if cell_dims[i] == 0:
+            pass
+        cell_dm.append(cell_dims[i])
+
+PPot_files = []
+for item in os.listdir(PPot_path):
+    if fnmatch.fnmatch(item, '*.UPF'):
+        PPot_files.append(item)
+
+PPot_list = [] # match PPotentials to atoms_pturb with structure atoms_typ = {0:['Ni',3], 1:['O',2]}
+PPot_order = []
+
+for i in range(natoms_typ):
+    nPPot_state = atoms_typ[i][1]
+    PPot_atom = str(atoms_pturb[i])
+
+    for j in range(nPPot_state):
+        PPotnum_str = str(j+1)
+        PPot_typ = PPot_atom + PPotnum_str
+        PPot_list.append(PPot_typ)
+        PPot_order.append(PPot_atom)
+
+nPPot_list = len(PPot_list)
+PPotelements_lib = {}
+UandPPot_lib = {}
+
+for i in range(natoms_typ):
+    PPotelement_list = []
+
+    for j in range(nPPot_list):
+        if PPot_order[j] == atoms_typ[i][0]:
+            PPotelement_list.append(PPot_list[j])
+
+    PPotelements_lib[i] = PPotelement_list
+    UandPPot_lib[i]= {i:[]}
+
+#from collections import defaultdict ?
+#UandPPot_lib = defaultdict(list) ?
+# list comprehension ?
+
+for i in range(natoms_typ):
+    UandPPot_list = []
+
+    for j in range(natoms_typ):
+        UandPPotelement_list = []
+        UandPPotelement_list += PPotelements_lib[j]
+
+        if i != j:
+            del UandPPotelement_list[-1]
+
+        UandPPot_list += UandPPotelement_list
+
+    UandPPot_lib[i] = UandPPot_list
+
+print UandPPot_lib
+
+U_counter = []
+for i in range(natoms_typ):
+    init_counter = 0
+    U_counter.append(init_counter)
+
+UandPPot_typ = []
+for i in range(natoms_typ):
+    UandPPot_typ.append( len(UandPPot_lib[i]) )
+    UandPPot_list = UandPPot_lib[i]
+
+    for j in range(UandPPot_typ[i]):
+        UandPPot_atom = UandPPot_list[j]
+
+        if UandPPot_atom.find(atoms_typ[i][0]) != -1:
+            U_counter[i] += 1
+
+inputfile_atoms = ''
+
+# displaced atom needs to be 1st of elements
+
+alphacoord_start = 0
+alphacoord_shift = [0]  # first atom is first to be perturbed
+for i in range(natoms_typ):
+    inputfile_atoms += atoms_typ[i][0]
+
+    for j in range(natoms_typ):
+        alphacoord_start += atoms_typ[j][1] - 1
+        alphacoord_shift.append(alphacoord_start)
+
+# magnets
+
+for i in range(min_U, max_U+1, del_U):
+    U_str = str(i)
+    U_float = float(i)
+    pre_U = os.getcwd()
+    os.makedirs(U_str)
+
+    shutil.copy2(QE_code, U_str)
+
+    if i == 0:
+        input_i = '1D-40'
+    else:
+        calc_i = (U_float / scale_alpha)
+        input_i = "{:1.3f}".format(calc_i)
+
+    os.chdir(U_str)
+
+    Coord_list = []
+    for j in range(natoms_typ):
+        natomstyp_str = str(j)
+        atomstyp_str = atoms_pturb[j]
+
+        os.makedirs(atomstyp_str)
+        pre_atoms = os.getcwd()
+        shutil.copy(QE_code, atomstyp_str)
+        os.chdir(atomstyp_str)
+
+        alpha_outdir = os.getcwd() + '/alpha/'
+        init_outdir = os.getcwd() + '/init/'
+
+        Hubbard_U = []
+        Hubbard_U_map = []
+        if Hubbard_U_auto == 'true':
+            for l in range( UandPPot_typ[j] ):
+                if l < U_counter[j]:     # limitation: atoms to which U are applied (only 1 U allowed) in SCF must come first
+                    Hubbard_U.append(input_i)
+                else:
+                    Hubbard_U.append('1D-40')
+        else:
+            for l in range( UandPPot_typ[j] ):
+                Hubbard_U_counter = Hubbard_U_set[j][l]
+                Hubbard_U_map.append(Hubbard_U_counter)
+            for l in range( UandPPot_typ[j] ):
+                if Hubbard_U_map[l] == 'x':
+                    Hubbard_U.append(input_i)
+                elif str.isdigit( int( Hubbard_U_map[l]) ) is True:  # just some random #
+                    Hubbard_U.append(Hubbard_U_map[l])
+                else:
+                    Hubbard_U.append('1D-40')
+# ##
+        PPotnamefile_lib = {}
+        UandPPot_list = UandPPot_lib[j]
+        for r in range( len(UandPPot_list) ):
+            UandPPot_atom = UandPPot_list[r]
+
+            for s in range( len(PPot_files) ):
+                PPot_fileitem = PPot_files[s]
+                PPot_searchitem = PPot_fileitem.split('.',1)[0]
+                if UandPPot_atom.find(PPot_searchitem) != -1:
+                    PPotnamefile_lib[r] = [UandPPot_atom, PPot_fileitem]
+# ##
+        # positions
+        coord_lib = {}
+        coord_counter = 0
+        coordpturb_counter = 0
+        coordatom_counter = 0
+        coordmag_counter = 0
+        coord_list = UandPPot_lib[j]
+
+        for t in range(natoms):
+            coord_counter = coordpturb_counter + coordatom_counter
+            coord_lib[t] = str(coord_list[coord_counter]) + '  ' + str(coordx[j][t]) + '  ' + str(coordy[j][t]) + '  ' + str(coordz[j][t])
+
+            if coord_counter == alphacoord_shift[j] and coordpturb_counter < 1:
+                coordpturb_counter += 1 # pturb
+            elif coord_order[j][t+1] != coord_order[j][t]:
+                    coordatom_counter += 1  # magnetic or change in atom
+            else:
+                if atoms_lib[j][t+1] != atoms_lib[j][t]:
+                    coordatom_counter += 1  # change in atom, non-mag
+
+        tracker_mag = []
+        starting_magnetization = []
+        coordmag_counter = 0
+        magmoment = np.zeros( (natoms_typ,2) )
+        magchecker_state = nPPot_list - (2*natoms_typ) + 1 # assumes that pturb and mag state only reason > 2
+        magchecker_counter = 0
+
+        for t in range(natoms):
+            if coord_order[j][t] != 0:
+                magchecker_counter += 1
+
+        if magchecker_state == 1 and magchecker_counter == 0: #
+            pass
+        elif coord_order[j:].sum() == 0:    # AFM
+            magmoment[j][0] = magmoment_base
+            magmoment[j][1] = magmoment_base * -1
+            starting_magnetization.append(magmoment[j][0])
+            starting_magnetization.append(magmoment[j][1])
+        else:
+            for t in range(natoms):
+                if coord_order[j][t+1] != coord_order[j][t] and coord_order[j][t] != 0:
+                    coordmag_counter += 1
+                    tracker_mag.append(t)
+                elif coord_order[j][t+1] != coord_order[j][t] and coord_order[j][t+1] != 0:
+                    coordmag_counter += 1
+                    tracker_mag.append(t+1)
+            if coordmag_counter > 1:
+                magmoment.reshape((natoms_typ,coordmag_counter))
+                for u in range( len(tracker_mag) ):
+                    magmoment[j][u] = magmoment_base * coord_order[j][tracker_mag[u]]
+                    starting_magnetization.append(magmoment[j][u]) # ferrimag
+            else:
+                starting_magnetization = coord_order[j][tracker_mag[0]]        # FM
+
+        for k in range(min_alpha, max_alpha+1, del_alpha):
+            alpha_str = str(k)
+            alpha_float = float(k)
+            inputprefix_alpha = inputfile_atoms + '_U' + U_str + '_a' + alpha_str + '.in'
+            inputprefix_init = inputfile_atoms + '_U' + U_str + '_init' + '.in'
+
+            if k == 0:
+                input_k = '1D-40'
+            else:
+                calc_k = (alpha_float / scale_alpha)
+                input_k = "{:1.3f}".format(calc_k)
+
+            Hubbard_alpha = []
+            for l in range( UandPPot_typ[j] ):
+                if l == alphacoord_shift[j]:
+                    Hubbard_alpha.append(input_k)
+                else:
+                    Hubbard_alpha.append('1D-40')
+
+            inputfile_alpha = open(inputprefix_alpha, 'w')
+
+            inputfile_alpha.write('&CONTROL\n')
+            inputfile_alpha.write(' calculation = "scf",\n')
+            inputfile_alpha.write(' verbosity = "{0}",\n'.format(verbosity))
+            inputfile_alpha.write(' restart_mode = "from_scratch",\n')
+
+            inputfile_alpha.write(' disk_io = "{0}",\n'.format(alpha_disk_io))
+            inputfile_alpha.write(' pseudo_dir = "{0}",\n'.format(pseudo_dir))
+            inputfile_alpha.write(' outdir = "{0}",\n'.format(alpha_outdir)) # can also set to './', but this is more reliable
+
+            inputfile_alpha.write(' title = "GGA + U, U = {0}, alpha = {1}",\n'.format(input_i, input_k))
+            inputfile_alpha.write(' prefix = "{0}",\n'.format(inputprefix_alpha))
+            inputfile_alpha.write(' wfcdir = "./",\n')
+            inputfile_alpha.write(' wf_collect = {0}\n'.format(wf_collect))
+            inputfile_alpha.write(' /\n')
+
+            inputfile_alpha.write('&SYSTEM\n')
+            inputfile_alpha.write(' ibrav = {0}\n'.format(ibrav))
+
+            for m in range(ncell_dim):
+                if cell_dims[m] != 0:
+                    inputfile_alpha.write(' celldm({0}) = {1}\n'.format(m+1, cell_dims[m]))
+
+            inputfile_alpha.write(' nat = {0}\n'.format(natoms))
+            input_ntyp = len(UandPPot_lib[j])
+            inputfile_alpha.write(' ntyp = {0}\n'.format(input_ntyp)) # direct result of established when PP for coord change
+            inputfile_alpha.write(' ecutwfc = {0}\n'.format(ecutwfc))
+            inputfile_alpha.write(' ecutrho = {0}\n'.format(ecutrho))
+
+            # magnets for n
+            magchecker_state = nPPot_list - (2*natoms_typ) + 1
+            for n in range( magchecker_state ):
+                inputfile_alpha.write(' starting_magnetization({0}) = {1}\n'.format(n+1, starting_magnetization[n]))
+
+            inputfile_alpha.write(' occupations = "{0}",\n'.format(occupations))
+            inputfile_alpha.write(' smearing = "{0}",\n'.format(smearing))
+            inputfile_alpha.write(' degauss = {0}\n'.format(degauss))
+            inputfile_alpha.write(' nosym = {0}\n'.format(nosym))
+#            inputfile_alpha.write(' nbnd = {0},\n'.format(nbnd))
+
+            inputfile_alpha.write(' lda_plus_U = .true.\n')
+            inputfile_alpha.write(' lda_plus_U_kind = 0\n')
+            inputfile_alpha.write(' U_projection_type = "{0}",\n'.format(U_projection_type))
+
+            # Hubbard U, Hubbard alpha
+            for p in range( UandPPot_typ[j] ):
+                inputfile_alpha.write(' Hubbard_U({0}) = {1}\n'.format(p+1, Hubbard_U[p]))
+                inputfile_alpha.write(' Hubbard_alpha({0}) = {1}\n'.format(p+1, Hubbard_alpha[p]))
+
+            inputfile_alpha.write(' /\n')
+
+            inputfile_alpha.write('&ELECTRONS\n')
+            inputfile_alpha.write(' electron_maxstep = {0}\n'.format(alpha_electron_maxstep))
+            inputfile_alpha.write(' conv_thr = {0}\n'.format(conv_thr))
+
+            inputfile_alpha.write(' diagonalization = "{0}",\n'.format(diagonalization))
+            inputfile_alpha.write(' diago_thr_init = {0}\n'.format(alpha_diago_thr_init))
+            inputfile_alpha.write(' diago_full_acc = {0}\n'.format(diago_full_acc))
+
+            inputfile_alpha.write(' startingpot = "{0}",\n'.format(alpha_startingpot))
+            inputfile_alpha.write(' startingwfc = "{0}",\n'.format(alpha_startingwfc))
+
+            inputfile_alpha.write(' mixing_mode = "{0}",\n'.format(mixing_mode))
+            inputfile_alpha.write(' mixing_beta = {0}\n'.format(mixing_beta))
+            inputfile_alpha.write(' mixing_ndim = {0}\n'.format(mixing_ndim))
+#            inputfile_alpha.write(' mixing_fixed_ns = {0}\n'.format(mixing_fixed_ns))
+            inputfile_alpha.write(' /\n')
+
+            inputfile_alpha.write('ATOMIC_SPECIES\n')
+
+            for r in range( len(PPotnamefile_lib) ):
+                PPot_printname = PPotnamefile_lib[r][0]
+                PPot_printfile = PPotnamefile_lib[r][1]
+                inputfile_alpha.write('{0}   1.0   {1}\n'.format(PPot_printname, PPot_printfile))
+
+            inputfile_alpha.write('\n')
+
+            inputfile_alpha.write('ATOMIC_POSITIONS ({0})\n'.format(coord_unit))
+
+            for t in range(natoms):
+                coord_output = coord_lib[t]
+                inputfile_alpha.write('{0}\n'.format(coord_output))
+
+            inputfile_alpha.write('\n')
+            inputfile_alpha.write('K_POINTS ({0})\n'.format(kpts_mode))
+            inputfile_alpha.write(' {0}\n'.format(kpts_grid))
+
+#            inputfile_alpha.close()
+# ###################################
+
+            inputfile_init = open(inputprefix_init, 'w')
+
+            inputfile_init.write('&CONTROL\n')
+            inputfile_init.write(' calculation = "scf",\n')
+            inputfile_init.write(' verbosity = "{0}",\n'.format(verbosity))
+            inputfile_init.write(' restart_mode = "from_scratch",\n')
+
+            inputfile_init.write(' disk_io = "{0}",\n'.format(init_disk_io))
+            inputfile_init.write(' pseudo_dir = "{0}",\n'.format(pseudo_dir))
+            inputfile_init.write(' outdir = "{0}",\n'.format(init_outdir)) # can also set to './', but this is more reliable
+
+            inputfile_init.write(' title = "GGA + U, U = {0}, alpha = {1}",\n'.format(input_i, input_k))
+            inputfile_init.write(' prefix = "{0}",\n'.format(inputprefix_init))
+            inputfile_init.write(' wfcdir = "./",\n')
+            inputfile_init.write(' wf_collect = {0}\n'.format(wf_collect))
+            inputfile_init.write(' /\n')
+
+            inputfile_init.write('&SYSTEM\n')
+            inputfile_init.write(' ibrav = {0}\n'.format(ibrav))
+
+            for m in range(ncell_dim):
+                if cell_dims[m] != 0:
+                    inputfile_init.write(' celldm({0}) = {1}\n'.format(m+1, cell_dims[m]))
+
+            inputfile_init.write(' nat = {0}\n'.format(natoms))
+            inputfile_init.write(' ntyp = {0}\n'.format(input_ntyp))
+            inputfile_init.write(' ecutwfc = {0}\n'.format(ecutwfc))
+            inputfile_init.write(' ecutrho = {0}\n'.format(ecutrho))
+
+            # magnets for n
+            magchecker_state = nPPot_list - (2*natoms_typ) + 1
+
+            for n in range( magchecker_state ):
+                inputfile_init.write(' starting_magnetization({0}) = {1}\n'.format(n+1, starting_magnetization[n]))
+
+            inputfile_init.write(' occupations = "{0}",\n'.format(occupations))
+            inputfile_init.write(' smearing = "{0}",\n'.format(smearing))
+            inputfile_init.write(' degauss = {0}\n'.format(degauss))
+            inputfile_init.write(' nosym = {0}\n'.format(nosym))
+#            inputfile_init.write(' nbnd = {0},\n'.format(nbnd))
+
+            inputfile_init.write(' lda_plus_U = .true.\n')
+            inputfile_init.write(' lda_plus_U_kind = 0\n')
+            inputfile_init.write(' U_projection_type = "{0}",\n'.format(U_projection_type))
+
+            # Hubbard U, Hubbard alpha
+            for p in range( UandPPot_typ[j] ):
+                inputfile_init.write(' Hubbard_U({0}) = {1}\n'.format(p+1, Hubbard_U[p]))
+
+            inputfile_init.write(' /\n')
+
+            inputfile_init.write('&ELECTRONS\n')
+            inputfile_init.write(' electron_maxstep = {0}\n'.format(init_electron_maxstep))
+            inputfile_init.write(' conv_thr = {0}\n'.format(conv_thr))
+
+            inputfile_init.write(' diagonalization = "{0}",\n'.format(diagonalization))
+            inputfile_init.write(' diago_thr_init = {0}\n'.format(init_diago_thr_init))
+            inputfile_init.write(' diago_full_acc = {0}\n'.format(diago_full_acc))
+
+            inputfile_init.write(' startingpot = "{0}",\n'.format(init_startingpot))
+            inputfile_init.write(' startingwfc = "{0}",\n'.format(init_startingwfc))
+
+            inputfile_init.write(' mixing_mode = "{0}",\n'.format(mixing_mode))
+            inputfile_init.write(' mixing_beta = {0}\n'.format(mixing_beta))
+            inputfile_init.write(' mixing_ndim = {0}\n'.format(mixing_ndim))
+#            inputfile_init.write(' mixing_fixed_ns = {0}\n'.format(mixing_fixed_ns))
+            inputfile_init.write(' /\n')
+
+            inputfile_init.write('ATOMIC_SPECIES\n')
+
+            for r in range( len(PPotnamefile_lib) ):
+                PPot_printname = PPotnamefile_lib[r][0]
+                PPot_printfile = PPotnamefile_lib[r][1]
+                inputfile_init.write('{0}   1.0   {1}\n'.format(PPot_printname, PPot_printfile))
+
+            inputfile_init.write('\n')
+
+            inputfile_init.write('ATOMIC_POSITIONS ({0})\n'.format(coord_unit))
+
+            for t in range(natoms):
+                coord_output = coord_lib[t]
+                inputfile_init.write('{0}\n'.format(coord_output))
+
+            inputfile_init.write('\n')
+            inputfile_init.write('K_POINTS ({0})\n'.format(kpts_mode))
+            inputfile_init.write(' {0}\n'.format(kpts_grid))
+
+#            inputfile_init.close()
+
+        os.chdir(pre_atoms)
+    os.remove(QE_code)
+    os.chdir(pre_U)
+
+# #############################################
+
+# can make own runscript, here's sample
+
+pre_U = os.getcwd()
+
+runfile = 'run'
+
+for i in range(min_U, max_U+1, del_U):
+    U_str = str(i)
+    os.chdir(U_str)
+    pre_atoms = os.getcwd()
+
+    for j in range(natoms_typ):
+        atomstyp_str = atoms_pturb[j]
+        os.chdir(atomstyp_str)
+
+        run_CWD = os.getcwd()
+        runfile = 'run'
+        inputprefix_init = inputfile_atoms + '_U' + U_str + '_init'
+
+        runfile = open(runfile, 'w')
+
+        runfile.write('#!/bin/bash\n')
+        runfile.write('#PBS -V\n')
+        runfile.write('#PBS -l walltime={0}\n'.format(walltime))
+        runfile.write('#PBS -l nodes={0}:ppn={1}\n'.format(nodes,ppn))
+        runfile.write('#PBS -j oe\n')
+        runfile.write('\n')
+
+        runfile.write('cd $PBS_O_WORKDIR\n')
+        runfile.write('\n')
+        runfile.write('echo " "\n')
+        runfile.write('echo "Job started on `hostname` at `date`"\n')
+        runfile.write('\n')
+
+        runfile.write('mpirun -np {0} '.format(nprocs) + run_CWD + '/' + QE_code + ' -inp ' + inputprefix_init + '.in\n')
+        runfile.write('mkdir alpha\n')
+
+        for k in range(min_alpha, max_alpha+1, del_alpha):
+            alpha_str = str(k)
+            inputprefix_alpha = inputfile_atoms + '_U' + U_str + '_a' + alpha_str
+
+            runfile.write('cp -r init/* alpha/\n')
+            runfile.write('mpirun -np {0} '.format(nprocs) + run_CWD + '/' + QE_code + ' -inp ' + inputprefix_alpha + '.in\n')
+            runfile.write('\\rm -rf alpha/*\n')
+
+        runfile.write('\n')
+        runfile.write('echo " "\n')
+        runfile.write('echo "Job Ended on `hostname` at `date`"\n')
+        runfile.write('echo " "\n')
+        runfile.write('#end')
+
+        os.chdir(pre_atoms)
+    os.chdir(pre_U)
+
+# ##########################################  run it
+
+pre_U = os.getcwd()
+
+for i in range(min_U_run, max_U_run+1, del_U):
+    U_str = str(i)
+    os.chdir(U_str)
+    pre_atoms = os.getcwd()
+
+    for j in atoms_run:
+        os.chdir(j)
+
+        os.system('qsub run')
+
+        os.chdir(pre_atoms)
+    os.chdir(pre_U)
+
+#+end_src
+
+#+RESULTS:
+: {0: ['La1', 'La2', 'Co1', 'O1'], 1: ['La1', 'Co1', 'Co2', 'O1'], 2: ['La1', 'Co1', 'O1', 'O2']}
+
+
+** Part 2: Run Created Input Files
+
+** Part 3: Aggregate and Check Results
+
+** Part 4: Calculate U
+
+** Part 5: Self-Consistent

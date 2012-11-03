@@ -1,0 +1,75 @@
+&CONTROL
+ calculation = "scf",
+ verbosity = "high",
+ restart_mode = "from_scratch",
+ disk_io = "none",
+ pseudo_dir = "/home/mcurnan/GGA+U_Corr/TestProj1_Code/example_NiO",
+ outdir = "/home/mcurnan/GGA+U_Corr/TestProj1_Code/example_NiO/100/O/alpha/",
+ title = "GGA + U, U = 1.000, alpha = -0.100",
+ prefix = "NiO_U100_a-10.in",
+ wfcdir = "./",
+ wf_collect = .false.
+ /
+&SYSTEM
+ ibrav = 1
+ celldm(1) = 7.9
+ nat = 16
+ ntyp = 4
+ ecutwfc = 30.0
+ ecutrho = 300.0
+ starting_magnetization(1) = 0.5
+ starting_magnetization(2) = -0.5
+ occupations = "smearing",
+ smearing = "gauss",
+ degauss = 0.01
+ nosym = .false.
+ lda_plus_U = .true.
+ lda_plus_U_kind = 0
+ U_projection_type = "atomic",
+ Hubbard_U(1) = 1.000
+ Hubbard_alpha(1) = 1D-40
+ Hubbard_U(2) = 1.000
+ Hubbard_alpha(2) = 1D-40
+ Hubbard_U(3) = 1D-40
+ Hubbard_alpha(3) = -0.100
+ Hubbard_U(4) = 1D-40
+ Hubbard_alpha(4) = 1D-40
+ /
+&ELECTRONS
+ electron_maxstep = 200
+ conv_thr = 1D-08
+ diagonalization = "david",
+ diago_thr_init = 5D-11
+ diago_full_acc = .false.
+ startingpot = "file",
+ startingwfc = "file",
+ mixing_mode = "plain",
+ mixing_beta = 0.3
+ mixing_ndim = 8
+ /
+ATOMIC_SPECIES
+Ni1   1.0   Ni.pbe-nd-rrkjus.UPF
+Ni2   1.0   Ni.pbe-nd-rrkjus.UPF
+O1   1.0   O.pbe-rrkjus.UPF
+O2   1.0   O.pbe-rrkjus.UPF
+
+ATOMIC_POSITIONS (crystal)
+Ni1  0.25  -0.25  -0.25
+Ni1  0.75  0.25  -0.25
+Ni1  0.75  -0.25  0.25
+Ni1  0.25  0.25  0.25
+Ni2  0.75  -0.25  -0.25
+Ni2  0.25  0.25  -0.25
+Ni2  0.25  -0.25  0.25
+Ni2  0.75  0.25  0.25
+O1  0.0  0.0  0.0
+O2  0.5  0.0  0.0
+O2  0.0  0.5  0.0
+O2  0.0  0.0  0.5
+O2  0.5  0.5  0.0
+O2  0.5  0.0  0.5
+O2  0.0  0.5  0.5
+O2  0.5  0.5  0.5
+
+K_POINTS (automatic)
+ 4 4 4 0 0 0
