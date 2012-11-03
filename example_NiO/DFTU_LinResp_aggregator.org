@@ -390,9 +390,9 @@ for i in range(min_U, max_U+1, del_U): # need +1 on max_U+1 to complete U loop
         for k in range(min_alpha, max_alpha+1, del_alpha): # start perturbation loop (different values of perturbation)
             alpha_str = str(k)
             alpha_float = float(k)
-            inputprefix_alpha = inputfile_atoms + '_U' + U_str + '_a' + alpha_str + '.in'
-            inputprefix_init = inputfile_atoms + '_U' + U_str + '_init' + '.in'             # name for input files
-
+            inputfilename_alpha = inputfile_atoms + '_U' + U_str + '_a' + alpha_str + '.in'
+            inputfilename_init = inputfile_atoms + '_U' + U_str + '_init' + '.in'             # name for input files
+            input_prefix = inputfile_atoms + '_U' + U_str
             if k == 0:
                 input_k = '1D-40'
             else:
@@ -409,7 +409,7 @@ for i in range(min_U, max_U+1, del_U): # need +1 on max_U+1 to complete U loop
 # ####################################################################
 # start writing out perturbation input files
 
-            inputfile_alpha = open(inputprefix_alpha, 'w')
+            inputfile_alpha = open(inputfilename_alpha, 'w')
 
             inputfile_alpha.write('&CONTROL\n')
             inputfile_alpha.write(' calculation = "scf",\n')
@@ -421,7 +421,7 @@ for i in range(min_U, max_U+1, del_U): # need +1 on max_U+1 to complete U loop
             inputfile_alpha.write(' outdir = "{0}",\n'.format(alpha_outdir))    # can also set to './', but this is more reliable
 
             inputfile_alpha.write(' title = "GGA + U, U = {0}, alpha = {1}",\n'.format(input_i, input_k))
-            inputfile_alpha.write(' prefix = "{0}",\n'.format(inputprefix_alpha))
+            inputfile_alpha.write(' prefix = "{0}",\n'.format(input_prefix))
             inputfile_alpha.write(' wfcdir = "./",\n')
             inputfile_alpha.write(' wf_collect = {0}\n'.format(wf_collect))
             inputfile_alpha.write(' /\n')
@@ -501,7 +501,7 @@ for i in range(min_U, max_U+1, del_U): # need +1 on max_U+1 to complete U loop
 
 # start writing out input for initial unperturbed systems
 
-            inputfile_init = open(inputprefix_init, 'w')
+            inputfile_init = open(inputfilename_init, 'w')
 
             inputfile_init.write('&CONTROL\n')
             inputfile_init.write(' calculation = "scf",\n')
@@ -512,8 +512,8 @@ for i in range(min_U, max_U+1, del_U): # need +1 on max_U+1 to complete U loop
             inputfile_init.write(' pseudo_dir = "{0}",\n'.format(pseudo_dir))
             inputfile_init.write(' outdir = "{0}",\n'.format(init_outdir)) # can also set to './', but this is more reliable
 
-            inputfile_init.write(' title = "GGA + U, U = {0}, alpha = {1}",\n'.format(input_i, input_k))
-            inputfile_init.write(' prefix = "{0}",\n'.format(inputprefix_init))
+            inputfile_init.write(' title = "GGA + U, U = {0}, initial SCF",\n'.format(input_i))
+            inputfile_init.write(' prefix = "{0}",\n'.format(input_prefix))
             inputfile_init.write(' wfcdir = "./",\n')
             inputfile_init.write(' wf_collect = {0}\n'.format(wf_collect))
             inputfile_init.write(' /\n')
@@ -674,7 +674,6 @@ for i in range(min_U_run, max_U_run+1, del_U):
 #+end_src
 
 #+RESULTS:
-: {0: ['La1', 'La2', 'Co1', 'O1'], 1: ['La1', 'Co1', 'Co2', 'O1'], 2: ['La1', 'Co1', 'O1', 'O2']}
 
 
 ** Part 2: Run Created Input Files

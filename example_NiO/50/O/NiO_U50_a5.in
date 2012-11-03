@@ -6,7 +6,7 @@
  pseudo_dir = "/home/mcurnan/GGA+U_Corr/TestProj1_Code/example_NiO",
  outdir = "/home/mcurnan/GGA+U_Corr/TestProj1_Code/example_NiO/50/O/alpha/",
  title = "GGA + U, U = 0.500, alpha = 0.050",
- prefix = "NiO_U50_a5.in",
+ prefix = "NiO_U50",
  wfcdir = "./",
  wf_collect = .false.
  /
@@ -17,8 +17,8 @@
  ntyp = 4
  ecutwfc = 30.0
  ecutrho = 300.0
- starting_magnetization(1) = 0.5
- starting_magnetization(2) = -0.5
+ starting_magnetization(1) = 4.0
+ starting_magnetization(2) = -4.0
  occupations = "smearing",
  smearing = "gauss",
  degauss = 0.01

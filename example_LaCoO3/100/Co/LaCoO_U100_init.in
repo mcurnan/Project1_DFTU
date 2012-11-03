@@ -5,8 +5,8 @@
  disk_io = "high",
  pseudo_dir = "/home/mcurnan/GGA+U_Corr/TestProj1_Code/example_LaCoO3",
  outdir = "/home/mcurnan/GGA+U_Corr/TestProj1_Code/example_LaCoO3/100/Co/init/",
- title = "GGA + U, U = 1.000, alpha = 0.150",
- prefix = "LaCoO_U100_init.in",
+ title = "GGA + U, U = 1.000, initial SCF",
+ prefix = "LaCoO_U100",
  wfcdir = "./",
  wf_collect = .false.
  /

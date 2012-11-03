@@ -6,7 +6,7 @@
  pseudo_dir = "/home/mcurnan/GGA+U_Corr/TestProj1_Code/example_LaCoO3",
  outdir = "/home/mcurnan/GGA+U_Corr/TestProj1_Code/example_LaCoO3/50/O/alpha/",
  title = "GGA + U, U = 0.500, alpha = -0.050",
- prefix = "LaCoO_U50_a-5.in",
+ prefix = "LaCoO_U50",
  wfcdir = "./",
  wf_collect = .false.
  /
