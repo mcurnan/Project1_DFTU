@@ -1,0 +1,39 @@
+#!/bin/bash
+#PBS -V
+#PBS -l walltime=24:00:00
+#PBS -l nodes=1:ppn=2
+#PBS -j oe
+
+cd $PBS_O_WORKDIR
+
+echo " "
+echo "Job started on `hostname` at `date`"
+
+mpirun -np 2 /home/mcurnan/dft-course/Project1/example_LaCoO3/400/La/pw_plusPP_Lad1.x -inp CoLaO_U400_init.in
+mkdir alpha
+cp -r init/* alpha/
+mpirun -np 2 /home/mcurnan/dft-course/Project1/example_LaCoO3/400/La/pw_plusPP_Lad1.x -inp CoLaO_U400_a-15.in
+\rm -rf alpha/*
+cp -r init/* alpha/
+mpirun -np 2 /home/mcurnan/dft-course/Project1/example_LaCoO3/400/La/pw_plusPP_Lad1.x -inp CoLaO_U400_a-10.in
+\rm -rf alpha/*
+cp -r init/* alpha/
+mpirun -np 2 /home/mcurnan/dft-course/Project1/example_LaCoO3/400/La/pw_plusPP_Lad1.x -inp CoLaO_U400_a-5.in
+\rm -rf alpha/*
+cp -r init/* alpha/
+mpirun -np 2 /home/mcurnan/dft-course/Project1/example_LaCoO3/400/La/pw_plusPP_Lad1.x -inp CoLaO_U400_a0.in
+\rm -rf alpha/*
+cp -r init/* alpha/
+mpirun -np 2 /home/mcurnan/dft-course/Project1/example_LaCoO3/400/La/pw_plusPP_Lad1.x -inp CoLaO_U400_a5.in
+\rm -rf alpha/*
+cp -r init/* alpha/
+mpirun -np 2 /home/mcurnan/dft-course/Project1/example_LaCoO3/400/La/pw_plusPP_Lad1.x -inp CoLaO_U400_a10.in
+\rm -rf alpha/*
+cp -r init/* alpha/
+mpirun -np 2 /home/mcurnan/dft-course/Project1/example_LaCoO3/400/La/pw_plusPP_Lad1.x -inp CoLaO_U400_a15.in
+\rm -rf alpha/*
+
+echo " "
+echo "Job Ended on `hostname` at `date`"
+echo " "
+#end

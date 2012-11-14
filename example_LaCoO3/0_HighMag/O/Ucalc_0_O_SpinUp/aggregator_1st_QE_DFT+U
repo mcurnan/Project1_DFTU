@@ -1,0 +1,74 @@
+#!/bin/bash
+
+nat=10     # change based on number of atoms in system
+natdbl=$(echo "scale=0; $nat*2" | bc)
+
+attyp=5     # change based on perturbed atom #
+
+min_set=15      # change based on alpha range
+del_set=5
+max_set=$(echo "scale=0; $min_set*2" | bc)
+
+awk '/JOB DONE/{n++}{print >"result_" n ".out" }' OUTPUT
+
+for j in $(seq $max_set -$del_set 0)
+  do
+    m=$(echo "scale=0; ($j/$del_set)+1" | bc)
+    mv result_${m}.out result_${j}.out
+done
+
+for i in $(seq 1 1 $nat)
+  do
+  for j in $(seq 0 $del_set $max_set)
+    do
+      if [ $j = $min_set ]
+        then l=0.000
+      else
+        l=$(echo "scale=3; ($j-$min_set)/100" | bc)
+      fi
+
+#      grep 'Tr' result_${j}.out |tail -$nat | head -$i| tail -1 > bananas_chi
+#      awk 'BEGIN{FS="=   "} {print $2}' bananas_chi > apples_${i}_chi
+
+      grep 'Tr' result_${j}.out |tail -$nat | head -$i| tail -1 > apples_${i}_chi
+
+      if [ -f "apples_${i}_chi" ]
+        then
+#         awk 'BEGIN{FS=" "} {print $2}' apples_${i}_chi >> dn_${i}_dalpha_${attyp}.dat
+          sed -e "s/atom    $i/$l/g" -e "s/atom   ${i}/$l/g" -e 's/Tr\[ns(na)\] (up, down, total) =//g' apples_${i}_chi > temp
+          awk '{print $1,$2}' temp >> dn_${i}_dalpha_${attyp}.dat
+      else
+#         awk 'BEGIN{FS=" "} {print $2}' apples_${i}_chi > dn_${i}_dalpha_${attyp}.dat
+          sed -e "s/atom    $i/$l/g" -e "s/atom   ${i}/$l/g" -e 's/Tr\[ns(na)\] (up, down, total) =//g' apples_${i}_chi > temp
+          awk '{print $1,$2}' temp > dn_${i}_dalpha_${attyp}.dat
+      fi
+
+#      grep 'Tr' result_${j}.out |head -${natdbl} | tail -$nat | head -$i| tail -1 > bananas_chi0
+#      awk 'BEGIN{FS=" "} {print $9}' bananas_chi0 > apples_${i}_chi0
+
+      grep 'Tr' result_${j}.out |head -${natdbl} | tail -$nat | head -$i| tail -1 > apples_${i}_chi0
+
+      if [ -f "apples_${i}_chi0" ]
+        then
+#         awk 'BEGIN{FS="=   "} {print $2}' apples_${i}_chi0 >> dn0_${i}_dalpha_${attyp}.dat
+          sed -e "s/atom    $i/$l/g" -e "s/atom   ${i}/$l/g" -e 's/Tr\[ns(na)\] (up, down, total) =//g' apples_${i}_chi0 > temp
+          awk '{print $1,$2}' temp >> dn0_${i}_dalpha_${attyp}.dat
+      else
+#         awk 'BEGIN{FS="=   "} {print $2}' apples_${i}_chi0 > dn0_${i}_dalpha_${attyp}.dat
+          sed -e "s/atom    $i/$l/g" -e "s/atom   ${i}/$l/g" -e 's/Tr\[ns(na)\] (up, down, total) =//g' apples_${i}_chi0 > temp
+          awk '{print $1,$2}' temp > dn0_${i}_dalpha_${attyp}.dat
+      fi
+  done
+done
+
+for i in $(seq 1 1 $nat)
+  do
+      if [ -f "files_LaCoO3" ]
+        then
+        echo dn_${i}_dalpha_${attyp}.dat dn0_${i}_dalpha_${attyp}.dat >> files_LaCoO3
+      else
+        echo dn_${i}_dalpha_${attyp}.dat dn0_${i}_dalpha_${attyp}.dat > files_LaCoO3
+      fi
+
+\rm apples_${i}_chi apples_${i}_chi0 # bananas_chi bananas_chi0
+done

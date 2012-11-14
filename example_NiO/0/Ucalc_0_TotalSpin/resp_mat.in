@@ -1,0 +1,13 @@
+ &input_mat
+   ntyp = 2
+   na(1) = 8
+   na(2) = 8
+   nalfa = 7
+   magn = .true.
+   filepos = 'pos_NiO'
+   back = 'neutral'
+   filednda = 'files_NiO'
+   n1 = 1
+   n2 = 1
+   n3 = 1
+ &end

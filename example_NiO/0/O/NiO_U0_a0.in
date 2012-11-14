@@ -3,29 +3,29 @@
  verbosity = "high",
  restart_mode = "from_scratch",
  disk_io = "none",
- pseudo_dir = "/home/mcurnan/GGA+U_Corr/TestProj1_Code/example_NiO",
- outdir = "/home/mcurnan/GGA+U_Corr/TestProj1_Code/example_NiO/0/O/alpha/",
+ pseudo_dir = "/home/mcurnan/dft-course/Project1/example_NiO",
+ outdir = "/home/mcurnan/dft-course/Project1/example_NiO/0/O/alpha/",
  title = "GGA + U, U = 1D-40, alpha = 1D-40",
  prefix = "NiO_U0",
- wfcdir = "./",
  wf_collect = .false.
  /
 &SYSTEM
- ibrav = 1
- celldm(1) = 7.9
+ ibrav = 2
+ celldm(1) = 15.8
  nat = 16
  ntyp = 4
+ nspin = 2
  ecutwfc = 30.0
  ecutrho = 300.0
- starting_magnetization(1) = 4.0
- starting_magnetization(2) = -4.0
+ starting_magnetization(1) = 0.5
+ starting_magnetization(2) = -0.5
  occupations = "smearing",
  smearing = "gauss",
  degauss = 0.01
  nosym = .false.
  lda_plus_U = .true.
  lda_plus_U_kind = 0
- U_projection_type = "atomic",
+ U_projection_type = "file",
  Hubbard_U(1) = 1D-40
  Hubbard_alpha(1) = 1D-40
  Hubbard_U(2) = 1D-40
@@ -37,9 +37,9 @@
  /
 &ELECTRONS
  electron_maxstep = 200
- conv_thr = 1D-08
+ conv_thr = 1D-8
  diagonalization = "david",
- diago_thr_init = 5D-11
+ diago_thr_init = 1D-10
  diago_full_acc = .false.
  startingpot = "file",
  startingwfc = "file",

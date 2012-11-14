@@ -1,0 +1,14 @@
+ &input_mat
+   ntyp = 3
+   na(1) = 2
+   na(2) = 2
+   na(3) = 6
+   nalfa = 7
+   magn = .true.
+   filepos = 'pos_LaCoO3'
+   back = 'neutral'
+   filednda = 'files_LaCoO3'
+   n1 = 1
+   n2 = 1
+   n3 = 1
+ &end
